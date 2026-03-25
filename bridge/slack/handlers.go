@@ -176,8 +176,11 @@ func (b *Bslack) skipMessageEvent(ev *slackevents.MessageEvent) bool {
 	}
 
 	// Skip any messages that we made ourselves or from 'slackbot' (see #527).
+	// For message_changed events, the bot ID is on ev.Message.BotID, not ev.BotID.
 	if ev.Username == sSlackBotUser ||
-		(b.smc != nil && ev.BotID == b.si.ID) || hasOurCallbackID {
+		(b.smc != nil && ev.BotID == b.si.ID) ||
+		(b.smc != nil && ev.Message != nil && ev.Message.BotID == b.si.ID) ||
+		hasOurCallbackID {
 		return true
 	}
 
