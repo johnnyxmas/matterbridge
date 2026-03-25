@@ -300,13 +300,14 @@ enable=true
 ```toml
 [slack]
 [slack.test]
-Token="yourslacktoken"
-PrefixMessagesWithNick=true
+Token="xoxb-yourslackbottoken"
+AppToken="xapp-yourapptoken"
 
 [discord]
 [discord.test]
 Token="yourdiscordtoken"
 Server="yourdiscordservername"
+AutoWebhooks=true
 
 [general]
 RemoteNickFormat="[{PROTOCOL}/{BRIDGE}] <{NICK}> "
@@ -323,6 +324,52 @@ RemoteNickFormat="[{PROTOCOL}/{BRIDGE}] <{NICK}> "
     account ="slack.test"
     channel = "general"
 ```
+
+> **Setup requirements for Slack and Discord are detailed below.** Both platforms have tightened their API access in recent years, so your bot apps need specific scopes and intents configured before matterbridge can function.
+
+#### Slack app setup
+
+Matterbridge uses **Socket Mode** to connect to Slack. You need both a Bot Token (`xoxb-`) and an App-Level Token (`xapp-`).
+
+1. Create a Slack app at <https://api.slack.com/apps>
+2. Enable **Socket Mode** under *Settings > Socket Mode*
+3. Create an **App-Level Token** with the `connections:write` scope — this is your `AppToken`
+4. Under *OAuth & Permissions*, add these **Bot Token Scopes**:
+
+| Scope | Purpose |
+|-------|---------|
+| `channels:history` | Read messages in public channels |
+| `channels:read` | List and find public channels |
+| `chat:write` | Post messages |
+| `chat:write.customize` | Post messages with custom username and avatar (required for username spoofing) |
+| `files:read` | Access shared files |
+| `files:write` | Upload files |
+| `groups:history` | Read messages in private channels |
+| `groups:read` | List and find private channels |
+| `reactions:read` | Read emoji reactions |
+| `users:read` | Look up user info for display names and avatars |
+
+5. Under *Event Subscriptions > Subscribe to bot events*, add:
+   - `message.channels` — messages in public channels
+   - `message.groups` — messages in private channels
+   - `member_joined_channel` — channel membership changes
+
+6. Install the app to your workspace. The **Bot User OAuth Token** is your `Token`.
+
+> **Note:** Without the `chat:write.customize` scope, all bridged messages will appear under the bot's own name instead of showing the original sender's username and avatar.
+
+#### Discord bot setup
+
+1. Create a bot at <https://discord.com/developers/applications>
+2. Under *Bot > Privileged Gateway Intents*, enable:
+   - **Message Content Intent** — required to read message text, embeds, and attachments
+   - **Server Members Intent** — required for member/nick resolution
+3. Under *OAuth2 > URL Generator*, select the `bot` scope with these **Bot Permissions**:
+   - **Read Messages/View Channels**
+   - **Send Messages**
+   - **Manage Webhooks** — required when using `AutoWebhooks=true` (recommended for username/avatar spoofing)
+   - **Manage Roles** — optional, allows role mentions to display with names instead of IDs
+4. Use the generated URL to invite the bot to your server
 
 ## Running
 

@@ -38,11 +38,10 @@ func (b *Bdiscord) getNick(user *discordgo.User, guildID string) string {
 	defer b.membersMutex.RUnlock()
 
 	if member, ok := b.userMemberMap[user.ID]; ok {
-		if member.Nick != "" {
-			// Only return if nick is set.
-			return member.Nick
+		// Use Discord's display name priority: server nick > global display name > username
+		if name := member.DisplayName(); name != "" {
+			return name
 		}
-		// Otherwise return username.
 		return user.Username
 	}
 
@@ -57,9 +56,9 @@ func (b *Bdiscord) getNick(user *discordgo.User, guildID string) string {
 	}
 	b.userMemberMap[user.ID] = member
 	b.nickMemberMap[member.User.Username] = member
-	if member.Nick != "" {
-		b.nickMemberMap[member.Nick] = member
-		return member.Nick
+	if name := member.DisplayName(); name != "" {
+		b.nickMemberMap[name] = member
+		return name
 	}
 	return user.Username
 }
