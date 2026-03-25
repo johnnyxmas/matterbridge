@@ -81,10 +81,9 @@ func (b *Bdiscord) Connect() error {
 		return err
 	}
 	b.Log.Info("Connection succeeded")
-	// Add privileged intent for guild member tracking. This is needed to track nicks
-	// for display names and @mention translation
-	b.c.Identify.Intents = discordgo.MakeIntent(discordgo.IntentsAllWithoutPrivileged |
-		discordgo.IntentsGuildMembers)
+	b.c.Identify.Intents = discordgo.IntentsAllWithoutPrivileged |
+		discordgo.IntentsGuildMembers |
+		discordgo.IntentMessageContent
 
 	err = b.c.Open()
 	if err != nil {
