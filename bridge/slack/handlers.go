@@ -153,12 +153,21 @@ func (b *Bslack) skipMessageEvent(ev *slackevents.MessageEvent) bool {
 		}
 	}
 
-	// Check for our callback ID
+	// Check for our callback ID in blocks.
+	// For Socket Mode / Events API, blocks are at the top level (ev.Blocks),
+	// not inside attachments. Check both locations for compatibility.
 	hasOurCallbackID := false
+	callbackBlockID := "matterbridge_" + b.uuid
 
-	if len(ev.Attachments) == 1 && len(ev.Attachments[0].Blocks.BlockSet) > 0 {
+	// Check top-level blocks (Socket Mode / Events API)
+	if len(ev.Blocks.BlockSet) > 0 {
+		block, ok := ev.Blocks.BlockSet[0].(*slack.SectionBlock)
+		hasOurCallbackID = ok && block.BlockID == callbackBlockID
+	}
+	// Check blocks inside attachments (legacy / RTM)
+	if !hasOurCallbackID && len(ev.Attachments) == 1 && len(ev.Attachments[0].Blocks.BlockSet) > 0 {
 		block, ok := ev.Attachments[0].Blocks.BlockSet[0].(*slack.SectionBlock)
-		hasOurCallbackID = ok && block.BlockID == "matterbridge_"+b.uuid
+		hasOurCallbackID = ok && block.BlockID == callbackBlockID
 	}
 
 	if ev.Message != nil {
@@ -169,9 +178,15 @@ func (b *Bslack) skipMessageEvent(ev *slackevents.MessageEvent) bool {
 			return true
 		}
 
-		if len(ev.Message.Attachments) == 1 && len(ev.Message.Attachments[0].Blocks.BlockSet) > 0 {
+		// Check top-level blocks on inner message (message_changed events via Socket Mode)
+		if !hasOurCallbackID && len(ev.Message.Blocks.BlockSet) > 0 {
+			block, ok := ev.Message.Blocks.BlockSet[0].(*slack.SectionBlock)
+			hasOurCallbackID = ok && block.BlockID == callbackBlockID
+		}
+		// Check blocks inside attachments on inner message (legacy / RTM)
+		if !hasOurCallbackID && len(ev.Message.Attachments) == 1 && len(ev.Message.Attachments[0].Blocks.BlockSet) > 0 {
 			block, ok := ev.Message.Attachments[0].Blocks.BlockSet[0].(*slack.SectionBlock)
-			hasOurCallbackID = ok && block.BlockID == "matterbridge_"+b.uuid
+			hasOurCallbackID = ok && block.BlockID == callbackBlockID
 		}
 	}
 
