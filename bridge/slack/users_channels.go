@@ -56,6 +56,9 @@ func (b *users) getUsername(id string) string {
 		if user.Profile.DisplayName != "" {
 			return user.Profile.DisplayName
 		}
+		if user.Profile.RealName != "" {
+			return user.Profile.RealName
+		}
 		return user.Name
 	}
 	b.log.Warnf("Could not find user with ID '%s'", id)

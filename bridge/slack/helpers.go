@@ -85,6 +85,9 @@ func (b *Bslack) populateMessageWithUserInfo(ev *slackevents.MessageEvent, rmsg 
 
 	rmsg.UserID = user.ID
 	rmsg.Username = user.Name
+	if user.Profile.RealName != "" {
+		rmsg.Username = user.Profile.RealName
+	}
 	if user.Profile.DisplayName != "" {
 		rmsg.Username = user.Profile.DisplayName
 	}
