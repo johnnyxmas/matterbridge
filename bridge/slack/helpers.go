@@ -36,8 +36,8 @@ func (b *Bslack) populateReceivedMessage(ev *slackevents.MessageEvent) (*config.
 
 	// Handle 'edit' messages.
 	if ev.Message != nil && !b.GetBool(editDisableConfig) {
-		rmsg.ID = ev.Message.TimeStamp
-		if ev.Message.ThreadTimeStamp != ev.Message.TimeStamp {
+		rmsg.ID = ev.Message.Timestamp
+		if ev.Message.ThreadTimestamp != ev.Message.Timestamp {
 			b.Log.Debugf("SubMessage %#v", ev.Message)
 			rmsg.Text = ev.Message.Text + b.GetString(editSuffixConfig)
 		}
@@ -47,7 +47,7 @@ func (b *Bslack) populateReceivedMessage(ev *slackevents.MessageEvent) (*config.
 	// Ensures edits to threaded messages maintain their prefix hint on the
 	// unthreaded end.
 	if ev.Message != nil {
-		rmsg.ParentID = ev.Message.ThreadTimeStamp
+		rmsg.ParentID = ev.Message.ThreadTimestamp
 	}
 
 	if err = b.populateMessageWithUserInfo(ev, rmsg); err != nil {
