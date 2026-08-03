@@ -639,11 +639,14 @@ PreserveThreading=false
 #REQUIRED
 [slack.hobby]
 #Token to connect with the Slack API
-#You'll have to use a test/api-token using a dedicated user and not a bot token.
-#See https://github.com/42wim/matterbridge/issues/75 for more info.
-#Use https://api.slack.com/custom-integrations/legacy-tokens
-#REQUIRED (when not using webhooks)
-Token="yourslacktoken"
+#Create a bot token on https://api.slack.com/apps - it must start with xoxb-
+#REQUIRED
+Token="xoxb-yourslacktoken"
+
+#AppToken for Socket Mode (required when using Token)
+#Create an app-level token on https://api.slack.com/apps - it must start with xapp-
+#REQUIRED (when using Token)
+AppToken="xapp-yourapptoken"
 
 #Extra slack specific debug info, warning this generates a lot of output.
 #OPTIONAL (default false)
@@ -802,6 +805,8 @@ UseFullName=false
 # Token (REQUIRED) is the token to connect with Discord API
 # You can get your token by following the instructions on
 # https://github.com/reactiflux/discord-irc/wiki/Creating-a-discord-bot-&-getting-a-token
+# Ensure your bot has the MESSAGE_CONTENT privileged intent enabled in the Developer Portal
+# to read message content, embeds, and attachments from messages the bot didn't send.
 # If you want roles/groups mentions to be shown with names instead of ID, you'll need to give your bot the "Manage Roles" permission.
 Token="Yourtokenhere"
 
