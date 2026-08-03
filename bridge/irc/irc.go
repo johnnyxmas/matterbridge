@@ -86,9 +86,13 @@ func (b *Birc) Connect() error {
 	}
 
 	if b.GetBool("UseSASL") {
+		saslLogin := b.GetString("SASLLogin")
+		if saslLogin == "" {
+			saslLogin = b.GetString("Nick")
+		}
 		i.Config.SASL = &girc.SASLPlain{
-			User: b.GetString("NickServNick"),
-			Pass: b.GetString("NickServPassword"),
+			User: saslLogin,
+			Pass: b.GetString("SASLPassword"),
 		}
 	}
 
