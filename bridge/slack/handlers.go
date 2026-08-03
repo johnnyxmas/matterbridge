@@ -168,25 +168,16 @@ func (b *Bslack) skipMessageEvent(ev *slackevents.MessageEvent) bool {
 			break
 		}
 	}
-	// Check blocks inside attachments (legacy / RTM)
-	if !hasOurCallbackID {
-		for _, att := range ev.Attachments {
-			for _, blk := range att.Blocks.BlockSet {
-				if section, ok := blk.(*slack.SectionBlock); ok && section.BlockID == callbackBlockID {
-					hasOurCallbackID = true
-					break
-				}
-			}
-			if hasOurCallbackID {
-				break
-			}
-		}
-	}
+	// Note: attachment blocks are only checked via ev.Message.Attachments below.
+	// MessageEvent no longer carries its own top-level Attachments field; since
+	// ev.Message is now always populated (synthesized from the top-level fields
+	// for regular messages, or the real nested object for message_changed), the
+	// ev.Message.Attachments check below covers both cases uniformly.
 
 	if ev.Message != nil {
 		// It seems ev.Message.Edited == nil when slack unfurls.
 		// Do not forward these messages. See Github issue #266.
-		if ev.Message.ThreadTimeStamp != ev.Message.TimeStamp &&
+		if ev.Message.ThreadTimestamp != ev.Message.Timestamp &&
 			ev.Message.Edited == nil {
 			return true
 		}
@@ -228,13 +219,13 @@ func (b *Bslack) skipMessageEvent(ev *slackevents.MessageEvent) bool {
 		return true
 	}
 
-	if len(ev.Files) > 0 {
-		return b.filesCached(ev.Files)
+	if ev.Message != nil && len(ev.Message.Files) > 0 {
+		return b.filesCached(ev.Message.Files)
 	}
 	return false
 }
 
-func (b *Bslack) filesCached(files []slackevents.File) bool {
+func (b *Bslack) filesCached(files []slack.File) bool {
 	for i := range files {
 		if !b.fileCached(&files[i]) {
 			return false
@@ -274,7 +265,7 @@ func (b *Bslack) handleMessageEvent(ev *slackevents.MessageEvent) (*config.Messa
 
 	// Verify that we have the right information and the message
 	// is well-formed before sending it out to the router.
-	if len(ev.Files) == 0 && (rmsg.Text == "" || rmsg.Username == "") {
+	if (ev.Message == nil || len(ev.Message.Files) == 0) && (rmsg.Text == "" || rmsg.Username == "") {
 		if ev.BotID != "" {
 			// This is probably a webhook we couldn't resolve.
 			return nil, fmt.Errorf("message handling resulted in an empty bot message (probably an incoming webhook we couldn't resolve): %#v", ev)
@@ -309,7 +300,7 @@ func (b *Bslack) handleStatusEvent(ev *slackevents.MessageEvent, rmsg *config.Me
 	case sMessageDeleted:
 		rmsg.Text = config.EventMsgDelete
 		rmsg.Event = config.EventMsgDelete
-		rmsg.ID = ev.PreviousMessage.TimeStamp
+		rmsg.ID = ev.PreviousMessage.Timestamp
 		// If a message is being deleted we do not need to process
 		// the event any further so we return 'true'.
 		return true
@@ -332,12 +323,16 @@ func (b *Bslack) handleAttachments(ev *slackevents.MessageEvent, rmsg *config.Me
 		rmsg.Username = sSystemUser
 	}
 
+	if ev.Message == nil {
+		return
+	}
+
 	// See if we have some text in the attachments.
 	if rmsg.Text == "" {
-		for i, attach := range ev.Attachments {
+		for i, attach := range ev.Message.Attachments {
 			if attach.Text != "" {
 				if attach.Title != "" {
-					rmsg.Text = getMessageTitle(&ev.Attachments[i])
+					rmsg.Text = getMessageTitle(&ev.Message.Attachments[i])
 				}
 				rmsg.Text += attach.Text
 				if attach.Footer != "" {
@@ -350,22 +345,22 @@ func (b *Bslack) handleAttachments(ev *slackevents.MessageEvent, rmsg *config.Me
 	}
 
 	// Save the attachments, so that we can send them to other slack (compatible) bridges.
-	if len(ev.Attachments) > 0 {
-		rmsg.Extra[sSlackAttachment] = append(rmsg.Extra[sSlackAttachment], ev.Attachments)
+	if len(ev.Message.Attachments) > 0 {
+		rmsg.Extra[sSlackAttachment] = append(rmsg.Extra[sSlackAttachment], ev.Message.Attachments)
 	}
 
 	// If we have files attached, download them (in memory) and put a pointer to it in msg.Extra.
-	for i := range ev.Files {
+	for i := range ev.Message.Files {
 		// keep reference in cache on which channel we added this file
-		b.cache.Add(cfileDownloadChannel+ev.Files[i].ID, ev.Channel)
-		if err := b.handleDownloadFile(rmsg, &ev.Files[i], false); err != nil {
+		b.cache.Add(cfileDownloadChannel+ev.Message.Files[i].ID, ev.Channel)
+		if err := b.handleDownloadFile(rmsg, &ev.Message.Files[i], false); err != nil {
 			b.Log.Errorf("Could not download incoming file: %#v", err)
 		}
 	}
 }
 
 // handleDownloadFile handles file download
-func (b *Bslack) handleDownloadFile(rmsg *config.Message, file *slackevents.File, retry bool) error {
+func (b *Bslack) handleDownloadFile(rmsg *config.Message, file *slack.File, retry bool) error {
 	if b.fileCached(file) {
 		return nil
 	}
@@ -427,7 +422,7 @@ func (b *Bslack) handleGetChannelMembers(rmsg *config.Message) bool {
 // identically named file but with different content will be uploaded correctly
 // (the assumption is that such name collisions will not occur within the given
 // timeframes).
-func (b *Bslack) fileCached(file *slackevents.File) bool {
+func (b *Bslack) fileCached(file *slack.File) bool {
 	if ts, ok := b.cache.Get("file" + file.ID); ok && time.Since(ts.(time.Time)) < time.Minute {
 		return true
 	} else if ts, ok = b.cache.Get("filename" + file.Name); ok && time.Since(ts.(time.Time)) < 10*time.Second {

@@ -40,19 +40,19 @@ type Bslack struct {
 }
 
 const (
-	sChannelJoin     = "channel_join"
-	sChannelLeave    = "channel_leave"
-	sChannelJoined   = "channel_joined"
-	sMemberJoined    = "member_joined_channel"
-	sMessageChanged  = "message_changed"
-	sMessageDeleted  = "message_deleted"
-	sSlackAttachment = "slack_attachment"
-	sPinnedItem      = "pinned_item"
-	sUnpinnedItem    = "unpinned_item"
-	sChannelTopic    = "channel_topic"
-	sChannelPurpose  = "channel_purpose"
-	sFileComment     = "file_comment"
-	sMeMessage       = "me_message"
+	sChannelJoin         = "channel_join"
+	sChannelLeave        = "channel_leave"
+	sChannelJoined       = "channel_joined"
+	sMemberJoined        = "member_joined_channel"
+	sMessageChanged      = "message_changed"
+	sMessageDeleted      = "message_deleted"
+	sSlackAttachment     = "slack_attachment"
+	sPinnedItem          = "pinned_item"
+	sUnpinnedItem        = "unpinned_item"
+	sChannelTopic        = "channel_topic"
+	sChannelPurpose      = "channel_purpose"
+	sFileComment         = "file_comment"
+	sMeMessage           = "me_message"
 	sSystemUser          = "system"
 	sSlackBotUser        = "slackbot"
 	cfileDownloadChannel = "file_download_channel"
@@ -471,10 +471,11 @@ func (b *Bslack) uploadFile(msg *config.Message, channelID string) (string, erro
 		if fi.Comment != "" {
 			initialComment += fmt.Sprintf(" with comment: %s", fi.Comment)
 		}
-		res, err := b.sc.UploadFile(slack.FileUploadParameters{
+		res, err := b.sc.UploadFile(slack.UploadFileParameters{
 			Reader:          bytes.NewReader(*fi.Data),
 			Filename:        fi.Name,
-			Channels:        []string{channelID},
+			FileSize:        len(*fi.Data),
+			Channel:         channelID,
 			InitialComment:  initialComment,
 			ThreadTimestamp: msg.ParentID,
 		})
@@ -486,11 +487,19 @@ func (b *Bslack) uploadFile(msg *config.Message, channelID string) (string, erro
 			b.Log.Debugf("Adding file ID %s to cache with timestamp %s", res.ID, ts.String())
 			b.cache.Add("file"+res.ID, ts)
 
-			// search for message id by uploaded file in private/public channels, get thread timestamp from uploaded file
-			if v, ok := res.Shares.Private[channelID]; ok && len(v) > 0 {
+			// UploadFile's FileSummary no longer carries share info since the
+			// files.upload -> files.upload.v2 migration, so fetch the full File
+			// to search for message id by uploaded file in private/public
+			// channels, and get the thread timestamp from the uploaded file.
+			fullFile, _, _, ferr := b.sc.GetFileInfo(res.ID, 0, 0)
+			if ferr != nil {
+				b.Log.Errorf("getfileinfo %#v", ferr)
+				continue
+			}
+			if v, ok := fullFile.Shares.Private[channelID]; ok && len(v) > 0 {
 				messageID = v[0].Ts
 			}
-			if v, ok := res.Shares.Public[channelID]; ok && len(v) > 0 {
+			if v, ok := fullFile.Shares.Public[channelID]; ok && len(v) > 0 {
 				messageID = v[0].Ts
 			}
 		}
