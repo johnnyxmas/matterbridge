@@ -471,6 +471,7 @@ func (b *Bslack) uploadFile(msg *config.Message, channelID string) (string, erro
 		if fi.Comment != "" {
 			initialComment += fmt.Sprintf(" with comment: %s", fi.Comment)
 		}
+
 		res, err := b.sc.UploadFile(slack.UploadFileParameters{
 			Reader:          bytes.NewReader(*fi.Data),
 			Filename:        fi.Name,
@@ -496,9 +497,11 @@ func (b *Bslack) uploadFile(msg *config.Message, channelID string) (string, erro
 				b.Log.Errorf("getfileinfo %#v", ferr)
 				continue
 			}
+
 			if v, ok := fullFile.Shares.Private[channelID]; ok && len(v) > 0 {
 				messageID = v[0].Ts
 			}
+
 			if v, ok := fullFile.Shares.Public[channelID]; ok && len(v) > 0 {
 				messageID = v[0].Ts
 			}

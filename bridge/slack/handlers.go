@@ -108,7 +108,6 @@ func (b *Bslack) handleSlackClient(messages chan *config.Message) {
 			case *slackevents.MemberJoinedChannelEvent:
 				if innerEventData.User == b.si.UserID {
 					channel, err := b.smc.GetConversationInfo(&slack.GetConversationInfoInput{ChannelID: innerEventData.Channel})
-
 					if err != nil {
 						b.Log.Errorf("Unable to get conversation info for channel %s", innerEventData.Channel)
 					}
@@ -353,7 +352,9 @@ func (b *Bslack) handleAttachments(ev *slackevents.MessageEvent, rmsg *config.Me
 	for i := range ev.Message.Files {
 		// keep reference in cache on which channel we added this file
 		b.cache.Add(cfileDownloadChannel+ev.Message.Files[i].ID, ev.Channel)
-		if err := b.handleDownloadFile(rmsg, &ev.Message.Files[i], false); err != nil {
+
+		err := b.handleDownloadFile(rmsg, &ev.Message.Files[i], false)
+		if err != nil {
 			b.Log.Errorf("Could not download incoming file: %#v", err)
 		}
 	}
