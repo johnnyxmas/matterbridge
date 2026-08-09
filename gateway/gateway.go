@@ -18,6 +18,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const ircProtocol = "irc"
+
 type Gateway struct {
 	config.Config
 
@@ -352,7 +354,7 @@ func (gw *Gateway) modifyUsername(msg *config.Message, dest *bridge.Bridge) stri
 	// can't distinguish from an intentional part of the name. StripNick and
 	// ReplaceNicks above still apply, since those are genuine per-network
 	// name transforms rather than a text-prefix format.
-	if dest.Protocol == "irc" && dest.GetBool("UseRelayMsg") {
+	if dest.Protocol == ircProtocol && dest.GetBool("UseRelayMsg") {
 		return msg.Username
 	}
 
@@ -462,7 +464,7 @@ func (gw *Gateway) SendMessage(
 	}
 
 	// Only send irc notices to irc
-	if msg.Event == config.EventNoticeIRC && dest.Protocol != "irc" {
+	if msg.Event == config.EventNoticeIRC && dest.Protocol != ircProtocol {
 		return "", nil
 	}
 

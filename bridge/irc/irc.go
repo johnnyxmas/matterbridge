@@ -242,10 +242,13 @@ func relayMsgNick(nick, protocol string, maxNickLen int) string {
 	if protocol == "" {
 		return nick
 	}
+
 	suffix := "/" + protocol
+
 	if maxNickLen <= 0 {
 		maxNickLen = 30 // conservative RFC1459 default when NICKLEN is unknown
 	}
+
 	if room := maxNickLen - len(suffix); room > 0 && len(nick) > room {
 		// truncate on a rune boundary so we don't split a multi-byte
 		// UTF-8 character and produce invalid UTF-8
@@ -254,10 +257,13 @@ func relayMsgNick(nick, protocol string, maxNickLen int) string {
 			if r, _ := utf8.DecodeLastRuneInString(trimmed); r != utf8.RuneError {
 				break
 			}
+
 			trimmed = trimmed[:len(trimmed)-1]
 		}
+
 		nick = trimmed
 	}
+
 	return nick + suffix
 }
 

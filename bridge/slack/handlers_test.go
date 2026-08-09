@@ -2,7 +2,7 @@ package bslack
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"testing"
 
 	"github.com/42wim/matterbridge/bridge"
@@ -39,7 +39,7 @@ func TestMessageEventUnmarshalSynthesizesThreadTimestamp(t *testing.T) {
 
 func TestSkipMessageEventDoesNotDropRegularMessages(t *testing.T) {
 	logger := logrus.New()
-	logger.SetOutput(ioutil.Discard)
+	logger.SetOutput(io.Discard)
 	cfg := &bridge.Config{Bridge: &bridge.Bridge{Log: logrus.NewEntry(logger)}}
 	b := newBridge(cfg)
 	b.si = &slack.Bot{ID: "BBOTID", UserID: "UBOTUSER"}
