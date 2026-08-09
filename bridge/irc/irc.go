@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/42wim/matterbridge/bridge"
 	"github.com/42wim/matterbridge/bridge/config"
@@ -225,6 +226,41 @@ func sanitizeNick(nick string) string {
 	return strings.Map(sanitize, nick)
 }
 
+// relayMsgNick builds the spoofed nick used for RELAYMSG: the sanitized
+// display name, plus a "/<protocol>" suffix (e.g. "alice/discord"). The
+// suffix isn't just cosmetic: per the draft/relaymsg spec some servers
+// (e.g. Ergo, when relaymsg.separators is configured) REQUIRE every relayed
+// nick to contain one of a configured set of separator characters, and
+// reject the RELAYMSG outright with ERR_INVALID_NICK if it doesn't. It also
+// keeps spoofed nicks from colliding with real connected users.
+//
+// maxNickLen is passed in (from the server's NICKLEN, when known) so the
+// base name is truncated rather than the suffix - a suffix truncated away
+// silently reproduces the same rejection this function exists to avoid.
+func relayMsgNick(nick, protocol string, maxNickLen int) string {
+	nick = sanitizeNick(nick)
+	if protocol == "" {
+		return nick
+	}
+	suffix := "/" + protocol
+	if maxNickLen <= 0 {
+		maxNickLen = 30 // conservative RFC1459 default when NICKLEN is unknown
+	}
+	if room := maxNickLen - len(suffix); room > 0 && len(nick) > room {
+		// truncate on a rune boundary so we don't split a multi-byte
+		// UTF-8 character and produce invalid UTF-8
+		trimmed := nick[:room]
+		for len(trimmed) > 0 {
+			if r, _ := utf8.DecodeLastRuneInString(trimmed); r != utf8.RuneError {
+				break
+			}
+			trimmed = trimmed[:len(trimmed)-1]
+		}
+		nick = trimmed
+	}
+	return nick + suffix
+}
+
 func (b *Birc) doSend() {
 	rate := time.Millisecond * time.Duration(b.MessageDelay)
 	throttle := time.NewTicker(rate)
@@ -236,7 +272,8 @@ func (b *Birc) doSend() {
 		// nolint:nestif
 		if (b.i.HasCapability("overdrivenetworks.com/relaymsg") || b.i.HasCapability("draft/relaymsg")) &&
 			b.GetBool("UseRelayMsg") {
-			username = sanitizeNick(username)
+			nickLen, _ := b.i.GetServerOptionInt("NICKLEN")
+			username = relayMsgNick(username, msg.Protocol, nickLen)
 			text := msg.Text
 
 			// Work around girc chomping leading commas on single word messages?

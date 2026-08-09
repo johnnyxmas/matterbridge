@@ -344,6 +344,18 @@ func (gw *Gateway) modifyUsername(msg *config.Message, dest *bridge.Bridge) stri
 		msg.Username = re.ReplaceAllString(msg.Username, replace)
 	}
 
+	// RELAYMSG (IRC) shows each remote sender as their own distinct nick
+	// rather than a text label prepended to the message body, so it must
+	// NOT go through RemoteNickFormat's "{NICK}: "-style templating here -
+	// that produces a nick containing stray punctuation (e.g. from a
+	// trailing ": ") which the IRC bridge's own RELAYMSG nick-sanitizing
+	// can't distinguish from an intentional part of the name. StripNick and
+	// ReplaceNicks above still apply, since those are genuine per-network
+	// name transforms rather than a text-prefix format.
+	if dest.Protocol == "irc" && dest.GetBool("UseRelayMsg") {
+		return msg.Username
+	}
+
 	if len(msg.Username) > 0 {
 		// fix utf-8 issue #193
 		i := 0
