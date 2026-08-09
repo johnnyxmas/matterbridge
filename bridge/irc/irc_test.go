@@ -37,7 +37,7 @@ func TestRelayMsgNick(t *testing.T) {
 	assert.Equal(t, 15, len(got))
 
 	// truncation must not split a multi-byte UTF-8 rune
-	got = relayMsgNick("日本語なまえながい", "discord", 15)
+	got = relayMsgNick("Приветствиемир", "discord", 15)
 	assert.True(t, utf8.ValidString(got))
 	assert.Regexp(t, `/discord$`, got)
 
