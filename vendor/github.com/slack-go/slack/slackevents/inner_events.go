@@ -379,6 +379,18 @@ func (e *MessageEvent) UnmarshalJSON(data []byte) error {
 			return err
 		}
 
+		// Regular (non-threaded) messages have no "thread_ts" key in the raw
+		// JSON at all, so msg.ThreadTimestamp comes out of the unmarshal as
+		// "". Conceptually a top-level message is the root of its own
+		// thread, so backfill it to match msg.Timestamp - callers (e.g.
+		// matterbridge's ThreadTimestamp != Timestamp "was this unfurled?"
+		// check for issue #266) rely on that equality to identify genuine
+		// top-level messages. Leaving it "" makes every regular message
+		// indistinguishable from an unfurl and get silently dropped.
+		if msg.ThreadTimestamp == "" {
+			msg.ThreadTimestamp = msg.Timestamp
+		}
+
 		// Set the Message field to the unmarshaled msg
 		e.Message = msg
 	}
